@@ -1,0 +1,68 @@
+service: my-serverless-service
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  region: ap-south-1
+  stage: prod
+  runtime: python3.9
+  profile: ticket-testing1
+  memorySize: 1024 # default memory
+  timeout: 900 # default time out
+
+#Adding packeging information
+package:
+  include:
+    - src/models/config.py
+    - src/models/lambda_apis/**
+    - src/models/sceduled_lambdas/** 
+  
+  exlude:
+    - docs/**
+    - models/**
+    - notebooks/**
+    - references/**
+    - reports/**
+    - src/data/**
+    - src/visualization/**
+    - src/models/**
+    - utils/**
+
+functions:
+  custom_memory_timeout_func: 
+      handler: handler.custom_memory
+      memorySize: 2048
+      timeout: 30
+
+  default_memory_timeout_function:
+    handler: handler.default_memory
+  
+  rate_triggered_lambda:
+    handler: handler.hello
+    events:
+      - schedule: rate(10 minutes) #run every 10 minutes
+  #Lambdas with Http events using API gateway
+  user_detail_api:
+    handler: handler.send_user_details
+    events:
+      - http:
+          path: details/{user_id}
+          method: GET
+          integration: lambda-proxy
+          cors: true
+  
+  location_api:
+    handler: handler.send_location
+    events:
+      - http:
+          path: location/{user_id}
+          method: GET
+          integration: lambda-proxy
+          cors: true
+  
+  monitoring_lambda:
+    handler: src/models/schedule_lambdas/monitoring_lambda.periodic_monitoring
+    events:
+      - scedule: cron(15 16 * * ? *)
+plugins:
+  - serverless-python-requirements
